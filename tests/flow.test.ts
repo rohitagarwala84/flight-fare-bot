@@ -4,7 +4,7 @@
 import http from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { runWatchlist } from "@/lib/scan";
+import { prune, runWatchlist } from "@/lib/scan";
 import { runSearch } from "@/lib/search";
 import { capStatus } from "@/lib/ledger";
 import { expenseReport } from "@/lib/expenses";
@@ -171,5 +171,17 @@ describe("nightly scan → search → cap", () => {
     const cap = await capStatus(userId);
     expect(cap.spentInr).toBeCloseTo(me.totalInr, 5);
     expect(cap.blocked).toBe(false);
+  });
+
+  it("prune drops past dates and stale snapshots, keeps the rest", async () => {
+    const before = await prisma.fareCalendar.count();
+    await prisma.fareCalendar.create({ data: { origin: "CCU", destination: "DXB", date: "2020-01-01", priceInr: 1, observedAt: new Date() } });
+    await prisma.fareSnapshot.create({
+      data: { origin: "CCU", destination: "DXB", date: tomorrow, adults: 9, itineraries: [], observedAt: new Date("2020-01-01") },
+    });
+    const snaps = await prisma.fareSnapshot.count();
+    await prune(() => {});
+    expect(await prisma.fareCalendar.count()).toBe(before);
+    expect(await prisma.fareSnapshot.count()).toBe(snaps - 1);
   });
 });

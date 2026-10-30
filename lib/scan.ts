@@ -43,5 +43,16 @@ export async function runAllWatchlists(log: (s: string) => void = console.log) {
   const lists = await prisma.watchlist.findMany({ where: { active: true } });
   const out = [];
   for (const w of lists) out.push({ id: w.id, label: w.label, ...(await runWatchlist(w.id, log)) });
+  await prune(log);
   return out;
+}
+
+// Keeps the database small enough for a free Postgres plan: past travel dates
+// and old itinerary snapshots are never read again.
+export async function prune(log: (s: string) => void = console.log) {
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 7 * 86400_000);
+  const cal = await prisma.fareCalendar.deleteMany({ where: { date: { lt: today } } });
+  const snap = await prisma.fareSnapshot.deleteMany({ where: { OR: [{ date: { lt: today } }, { observedAt: { lt: weekAgo } }] } });
+  log(`prune: ${cal.count} calendar rows, ${snap.count} snapshots removed`);
 }
