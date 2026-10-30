@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Provider {
+  IGNAV
+  SERPAPI
+  AI
+}
+
+model User {
+  id            String       @id @default(cuid())
+  username      String       @unique
+  name          String
+  passwordHash  String
+  role          Role         @default(USER)
+  monthlyCapInr Int          @default(1000)
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  searches      Search[]
+  usage         UsageEvent[]
+}
+
+// One row per paid call (fare API or AI). userId null = company (nightly scan).
+model UsageEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  provider  Provider
+  action    String
+  units     Int      @default(1)
+  costInr   Float
+  searchId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model Search {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  request   Json
+  results   Json
+  tips      String?
+  costInr   Float    @default(0)
+  usedLive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Cheapest one-way fare per route per day (filled by the nightly scan).
+model FareCalendar {
+  origin      String
+  destination String
+  date        String
+  priceInr    Float?
+  observedAt  DateTime
+
+  @@id([origin, destination, date])
+}
+
+// Full itineraries for one route + date, cached so repeat searches are free.
+model FareSnapshot {
+  origin      String
+  destination String
+  date        String
+  adults      Int      @default(1)
+  itineraries Json
+  observedAt  DateTime
+
+  @@id([origin, destination, date, adults])
+}
+
+// "Scan India -> Nigeria every night" until switched off.
+model Watchlist {
+  id           String   @id @default(cuid())
+  label        String
+  origins      String[]
+  destinations String[]
+  monthsAhead  Int      @default(3)
+  detailDates  Int      @default(3)
+  active       Boolean  @default(true)
+  lastRunAt    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
