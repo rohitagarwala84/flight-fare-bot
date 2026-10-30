@@ -105,7 +105,7 @@ export default function ExpensesPage() {
       </div>
 
       <div className="card table-wrap">
-        <h2>Sesh 50 ta call</h2>
+        <h2>Sesh 50 ta call (shudhu 7 diner details rakha hoy)</h2>
         <table>
           <thead>
             <tr>

@@ -1,5 +1,5 @@
-// Expense tracker: every paid call is written here with its rupee cost, and
-// per-user monthly caps are checked against these rows.
+// Expense tracker: every paid call is written here with its rupee cost and added
+// to the user's monthly total, which the cap is checked against.
 import type { Provider } from "@prisma/client";
 import { prisma } from "./db";
 import { config, usdToInr } from "./config";
@@ -7,6 +7,20 @@ import { config, usdToInr } from "./config";
 export function monthStart(d = new Date()) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
+
+export const monthKey = (d = new Date()) => d.toISOString().slice(0, 7);
+const userKey = (userId: string | null) => userId ?? "company";
+
+async function addToMonth(userId: string | null, add: { fareInr?: number; aiInr?: number; calls?: number; searches?: number }) {
+  const inc = Object.fromEntries(Object.entries(add).map(([k, v]) => [k, { increment: v }]));
+  await prisma.monthlySpend.upsert({
+    where: { month_userKey: { month: monthKey(), userKey: userKey(userId) } },
+    create: { month: monthKey(), userKey: userKey(userId), ...add },
+    update: inc,
+  });
+}
+
+export const countSearch = (userId: string) => addToMonth(userId, { searches: 1 });
 
 export async function record(e: {
   userId: string | null;
@@ -29,6 +43,7 @@ export async function record(e: {
       meta: e.meta,
     },
   });
+  await addToMonth(e.userId, e.provider === "AI" ? { aiInr: costInr, calls: 1 } : { fareInr: costInr, calls: 1 });
   return costInr;
 }
 
@@ -44,11 +59,8 @@ export function aiCostUsd(model: string, inputTokens: number, outputTokens: numb
 }
 
 export async function monthSpendInr(userId: string) {
-  const r = await prisma.usageEvent.aggregate({
-    where: { userId, createdAt: { gte: monthStart() } },
-    _sum: { costInr: true },
-  });
-  return r._sum.costInr ?? 0;
+  const r = await prisma.monthlySpend.findUnique({ where: { month_userKey: { month: monthKey(), userKey: userId } } });
+  return r ? r.fareInr + r.aiInr : 0;
 }
 
 export type CapStatus = { spentInr: number; capInr: number; ratio: number; blocked: boolean; warn: boolean };

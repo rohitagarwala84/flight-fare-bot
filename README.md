@@ -33,14 +33,20 @@ npm run seed              # admin + default policy + 5 route lists
 npm run dev
 ```
 
-## Deploy (Google Cloud Run, same as Hemraj Travel Desk) — target ₹0/month
+## Deploy — Hemraj group er Google Cloud project e, target ₹0/month
 
-1. **Database (free):** Neon free plan Postgres, or a separate database inside Hemraj's existing Cloud SQL instance if MIS agrees. Avoid a new Cloud SQL instance (that alone is ₹800+/month). The nightly scan deletes past dates and week-old snapshots, so the data stays far under 0.5 GB.
-2. **Hosting (free tier):** Cloud Run with min instances 0 and max 1. 5 users fit easily inside the monthly free requests/CPU. First page load after a quiet spell takes a few seconds.
-3. API keys go in **Secret Manager** (a handful of secrets is free) and are mapped to env vars on the Cloud Run service. Never paste keys in chat or commit them.
+Use the same Google Cloud project as Hemraj Travel Desk wherever possible (same billing, same people manage it):
+
+1. **Database:** a separate `farebot` database (and its own DB user) inside Hemraj's existing Cloud SQL instance, so no new instance cost. If MIS doesn't want that, use Neon's free Postgres. Don't create a new Cloud SQL instance (₹800+/month).
+2. **Hosting:** a new Cloud Run service `farebot` in the same project, min instances 0, max 1. 5 users fit inside the monthly free tier. First page load after a quiet spell takes a few seconds.
+3. **API keys:** Secret Manager in the same project, mapped to env vars on the service. Never paste keys in chat or commit them.
 4. `gcloud run deploy farebot --source . --region europe-west1 --min-instances 0 --max-instances 1`
-5. Cloud Scheduler (first 3 jobs free), every night 01:00 IST: `POST https://<service>/api/cron/nightly` with header `Authorization: Bearer <CRON_SECRET>`.
-6. Set a GCP budget alert at ₹200 so any surprise shows up at once.
+5. **Nightly scan:** Cloud Scheduler, 01:00 IST: `POST https://<service>/api/cron/nightly` with header `Authorization: Bearer <CRON_SECRET>`.
+6. Budget alert on the project at ₹200 above the current Hemraj spend.
+
+## Data retention: 7 days
+
+Every night after the scan, everything older than 7 days is deleted: searches, call-by-call cost rows, old itinerary snapshots and past travel dates. Only the small monthly totals per user (`MonthlySpend`) are kept, so monthly limits and the expense page keep working. Download the month's CSV from the expense page if you need a record.
 
 Or run `npm run scan` from any cron.
 

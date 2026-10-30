@@ -48,6 +48,20 @@ model UsageEvent {
   @@index([createdAt])
 }
 
+// One row per user per month (userKey "company" for the nightly scan). Detailed
+// UsageEvent and Search rows are deleted after 7 days; this keeps the monthly
+// totals and caps working.
+model MonthlySpend {
+  month    String // YYYY-MM
+  userKey  String
+  fareInr  Float  @default(0)
+  aiInr    Float  @default(0)
+  calls    Int    @default(0)
+  searches Int    @default(0)
+
+  @@id([month, userKey])
+}
+
 model Search {
   id        String   @id @default(cuid())
   userId    String

@@ -47,12 +47,14 @@ export async function runAllWatchlists(log: (s: string) => void = console.log) {
   return out;
 }
 
-// Keeps the database small enough for a free Postgres plan: past travel dates
-// and old itinerary snapshots are never read again.
+// Nothing is kept longer than 7 days: past travel dates, old itinerary
+// snapshots, searches and call-by-call cost rows. Monthly totals stay in MonthlySpend.
 export async function prune(log: (s: string) => void = console.log) {
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400_000);
   const cal = await prisma.fareCalendar.deleteMany({ where: { date: { lt: today } } });
   const snap = await prisma.fareSnapshot.deleteMany({ where: { OR: [{ date: { lt: today } }, { observedAt: { lt: weekAgo } }] } });
-  log(`prune: ${cal.count} calendar rows, ${snap.count} snapshots removed`);
+  const ev = await prisma.usageEvent.deleteMany({ where: { createdAt: { lt: weekAgo } } });
+  const se = await prisma.search.deleteMany({ where: { createdAt: { lt: weekAgo } } });
+  log(`prune: ${cal.count} calendar rows, ${snap.count} snapshots, ${se.count} searches, ${ev.count} cost rows removed`);
 }

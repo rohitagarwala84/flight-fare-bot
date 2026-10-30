@@ -75,6 +75,7 @@ const tomorrow = addDays(new Date().toISOString().slice(0, 10), 1);
 beforeAll(async () => {
   await new Promise<void>((r) => server.listen(4555, "127.0.0.1", r));
   await prisma.usageEvent.deleteMany();
+  await prisma.monthlySpend.deleteMany();
   await prisma.search.deleteMany();
   await prisma.user.deleteMany();
   await prisma.fareCalendar.deleteMany();
@@ -180,8 +181,17 @@ describe("nightly scan → search → cap", () => {
       data: { origin: "CCU", destination: "DXB", date: tomorrow, adults: 9, itineraries: [], observedAt: new Date("2020-01-01") },
     });
     const snaps = await prisma.fareSnapshot.count();
+    const old = new Date(Date.now() - 8 * 86400_000);
+    await prisma.usageEvent.updateMany({ data: { createdAt: old } });
+    await prisma.search.updateMany({ data: { createdAt: old } });
+    const spentBefore = (await capStatus(userId)).spentInr;
     await prune(() => {});
     expect(await prisma.fareCalendar.count()).toBe(before);
     expect(await prisma.fareSnapshot.count()).toBe(snaps - 1);
+    expect(await prisma.usageEvent.count()).toBe(0);
+    expect(await prisma.search.count()).toBe(0);
+    // monthly totals survive, so the cap and expense page still work
+    expect((await capStatus(userId)).spentInr).toBeCloseTo(spentBefore, 5);
+    expect((await expenseReport({})).companyScanInr).toBeCloseTo(6 * 0.176, 3);
   });
 });

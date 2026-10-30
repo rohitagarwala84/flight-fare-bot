@@ -6,7 +6,7 @@
 import { prisma } from "./db";
 import { config } from "./config";
 import { expandPlaces } from "./airports";
-import { capStatus } from "./ledger";
+import { capStatus, countSearch } from "./ledger";
 import { getCalendar, getItineraries, type Billing } from "./fares";
 import { rankItineraries } from "./rank";
 import { getPolicy } from "./settings";
@@ -29,6 +29,7 @@ export async function runSearch(userId: string, req: SearchRequest) {
   if (cap.blocked) notes.push("Ei maaser limit sesh, tai sudhu age theke rakha (raater scan) data dekhano holo.");
 
   const search = await prisma.search.create({ data: { userId, request: req, results: [] } });
+  await countSearch(userId);
   const bill: Billing = { userId, searchId: search.id, allowLive: !cap.blocked, forceLive: req.forceLive };
 
   // 1. Calendar
