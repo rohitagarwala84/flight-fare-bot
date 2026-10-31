@@ -44,6 +44,10 @@ Use the same Google Cloud project as Hemraj Travel Desk wherever possible (same 
 5. **Nightly scan:** Cloud Scheduler, 01:00 IST: `POST https://<service>/api/cron/nightly` with header `Authorization: Bearer <CRON_SECRET>`.
 6. Budget alert on the project at ₹200 above the current Hemraj spend.
 
+### On start
+
+The container (see `Dockerfile`) creates/updates the tables, creates the admin login from `ADMIN_USERNAME`/`ADMIN_PASSWORD` if it doesn't exist, adds the default policy and route lists, then starts the web app. No separate seed step is needed.
+
 ## Data retention: 7 days
 
 Every night after the scan, everything older than 7 days is deleted: searches, call-by-call cost rows, old itinerary snapshots and past travel dates. Only the small monthly totals per user (`MonthlySpend`) are kept, so monthly limits and the expense page keep working. Download the month's CSV from the expense page if you need a record.
