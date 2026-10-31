@@ -4,7 +4,7 @@
 import http from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { prune, runWatchlist } from "@/lib/scan";
+import { istWeekday, prune, runAllWatchlists, runWatchlist } from "@/lib/scan";
 import { runSearch } from "@/lib/search";
 import { capStatus } from "@/lib/ledger";
 import { expenseReport } from "@/lib/expenses";
@@ -193,5 +193,15 @@ describe("nightly scan → search → cap", () => {
     // monthly totals survive, so the cap and expense page still work
     expect((await capStatus(userId)).spentInr).toBeCloseTo(spentBefore, 5);
     expect((await expenseReport({})).companyScanInr).toBeCloseTo(6 * 0.176, 3);
+  });
+
+  it("nightly run only scans lists that are on and due today", async () => {
+    await prisma.watchlist.deleteMany();
+    const today = istWeekday();
+    await prisma.watchlist.create({ data: { label: "due", origins: ["CCU"], destinations: ["DXB"], monthsAhead: 1, detailDates: 0, days: [today] } });
+    await prisma.watchlist.create({ data: { label: "other day", origins: ["CCU"], destinations: ["SIN"], monthsAhead: 1, detailDates: 0, days: [(today + 1) % 7] } });
+    await prisma.watchlist.create({ data: { label: "off", origins: ["CCU"], destinations: ["HAN"], monthsAhead: 1, detailDates: 0, active: false } });
+    const out = await runAllWatchlists(() => {});
+    expect(out.map((r) => r.label)).toEqual(["due"]);
   });
 });

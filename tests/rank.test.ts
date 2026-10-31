@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { classifyLayover, layoverMinutes, rankItineraries } from "@/lib/rank";
 import { windows } from "@/lib/fares";
+import { istWeekday } from "@/lib/scan";
 import { expandPlaces } from "@/lib/airports";
 import { DEFAULT_POLICY } from "@/lib/settings";
 import type { Itinerary, Segment } from "@/lib/types";
@@ -102,5 +103,9 @@ describe("helpers", () => {
   it("expands country codes to airports", () => {
     expect(expandPlaces(["NG"])).toEqual(["LOS", "ABV", "KAN", "PHC"]);
     expect(expandPlaces(["ccu", "AE"])).toEqual(["CCU", "DXB", "SHJ", "AUH"]);
+  });
+  it("uses the Indian weekday for the 1 AM job", () => {
+    // Monday 1 AM IST = Sunday 19:30 UTC
+    expect(istWeekday(new Date("2026-11-01T19:30:00Z"))).toBe(1);
   });
 });

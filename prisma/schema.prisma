@@ -108,6 +108,7 @@ model Watchlist {
   monthsAhead  Int      @default(3)
   detailDates  Int      @default(3)
   active       Boolean  @default(true)
+  days         Int[]    @default([0, 1, 2, 3, 4, 5, 6]) // IST weekdays to scan, 0 = Sunday
   lastRunAt    DateTime?
   createdAt    DateTime @default(now())
 }

@@ -39,8 +39,11 @@ export async function runWatchlist(watchlistId: string, log: (s: string) => void
   return { routes, errors };
 }
 
+// Weekday in India (0 = Sunday); the job runs at 1 AM IST, so UTC would still be the day before.
+export const istWeekday = (d = new Date()) => new Date(d.getTime() + 330 * 60_000).getUTCDay();
+
 export async function runAllWatchlists(log: (s: string) => void = console.log) {
-  const lists = await prisma.watchlist.findMany({ where: { active: true } });
+  const lists = await prisma.watchlist.findMany({ where: { active: true, days: { has: istWeekday() } } });
   const out = [];
   for (const w of lists) out.push({ id: w.id, label: w.label, ...(await runWatchlist(w.id, log)) });
   await prune(log);

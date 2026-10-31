@@ -11,8 +11,11 @@ type Watch = {
   monthsAhead: number;
   detailDates: number;
   active: boolean;
+  days: number[];
   lastRunAt: string | null;
 };
+
+const DAYS = ["Rob", "Som", "Mon", "Budh", "Brih", "Shuk", "Shoni"];
 
 async function api(url: string, method: string, body?: unknown) {
   const res = await fetch(url, {
@@ -287,7 +290,9 @@ function Watchlists() {
     <>
       <div className="card table-wrap">
         <h2>Protiraate auto-scan</h2>
-        <p className="muted">Je list "On" ache, seta protiraate cholbe jotokkhon na off koren. {msg}</p>
+        <p className="muted">
+          Je list chalu, seta shudhu tick kora din gulor raate (1 ta) scan hobe. Bondho korle ar scan hobe na. {msg}
+        </p>
         <table>
           <thead>
             <tr>
@@ -295,6 +300,7 @@ function Watchlists() {
               <th>Theke</th>
               <th>Jabe</th>
               <th>Maas</th>
+              <th>Kon din</th>
               <th>Sesh scan</th>
               <th></th>
             </tr>
@@ -306,10 +312,33 @@ function Watchlists() {
                 <td>{w.origins.join(", ")}</td>
                 <td>{w.destinations.join(", ")}</td>
                 <td>{w.monthsAhead}</td>
+                <td>
+                  <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                    {DAYS.map((name, d) => {
+                      const on = w.days.includes(d);
+                      return (
+                        <label key={d} className="row" style={{ gap: 2, color: "inherit" }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: "auto" }}
+                            checked={on}
+                            onChange={() => {
+                              const days = on ? w.days.filter((x) => x !== d) : [...w.days, d].sort();
+                              if (days.length === 0) return setMsg("Kom kore 1 ta din rakhte hobe, na chaile list ta bondho korun.");
+                              api(`/api/admin/watchlists/${w.id}`, "PATCH", { days }).then(load);
+                            }}
+                          />
+                          {name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </td>
                 <td>{w.lastRunAt ? new Date(w.lastRunAt).toLocaleString("en-IN") : "-"}</td>
                 <td className="row">
+                  <span>{w.active ? "✅ Chalu" : "⛔ Bondho"}</span>
                   <button className="ghost" onClick={() => api(`/api/admin/watchlists/${w.id}`, "PATCH", { active: !w.active }).then(load)}>
-                    {w.active ? "On" : "Off"}
+                    {w.active ? "Bondho korun" : "Chalu korun"}
                   </button>
                   <button className="ghost" disabled={running !== null} onClick={() => runNow(w.id)}>
                     {running === w.id ? "Scan cholche..." : "Ekhon scan"}
